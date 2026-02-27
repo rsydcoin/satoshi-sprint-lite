@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Satoshi Sprint Lite</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --orange: #f7931a;
+    --orange-dim: #c4720d;
+    --orange-glow: rgba(247,147,26,0.18);
+    --red: #ff4444;
+    --green: #00e676;
+    --text: #f0f0f0;
+    --muted: #666;
+    --border: #222;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(247,147,26,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(247,147,26,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 460px;
+  }
+
+  /* ---- HEADER ---- */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    color: var(--orange);
+    text-shadow: 0 0 20px var(--orange-glow);
+  }
+
+  .logo span { color: var(--text); opacity: 0.5; font-size: 1rem; display: block; letter-spacing: 4px; margin-top: -6px; }
+
+  /* ---- STATS BAR ---- */
+  .stats {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-box {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    line-height: 1.1;
+    color: var(--orange);
+  }
+
+  .stat-value.timer-warn { color: var(--red); animation: pulse-red 0.8s infinite; }
+  @keyframes pulse-red { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+
+  /* ---- PRICE CARD ---- */
+  .price-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .price-card::after {
+    content: '₿';
+    position: absolute;
+    right: -10px;
+    bottom: -20px;
+    font-size: 8rem;
+    color: rgba(247,147,26,0.04);
+    font-family: 'Bebas Neue', sans-serif;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .price-label {
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .price-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.8rem, 10vw, 4rem);
+    color: var(--text);
+    letter-spacing: 2px;
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  .price-display.up { color: var(--green); }
+  .price-display.down { color: var(--red); }
+
+  .price-change {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 6px;
+    height: 18px;
+    transition: color 0.3s;
+  }
+  .price-change.up { color: var(--green); }
+  .price-change.down { color: var(--red); }
+
+  .update-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 6px;
+    vertical-align: middle;
+    animation: blink 3s infinite;
+  }
+  @keyframes blink { 0%,90%,100% { opacity:1 } 95% { opacity:0 } }
+
+  /* ---- COUNTDOWN RING ---- */
+  .countdown-wrap {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .countdown-wrap.active { display: flex; }
+
+  .countdown-ring {
+    position: relative;
+    width: 80px;
+    height: 80px;
+  }
+
+  .countdown-ring svg { transform: rotate(-90deg); }
+  .countdown-ring circle.track { fill: none; stroke: var(--border); stroke-width: 5; }
+  .countdown-ring circle.progress {
+    fill: none;
+    stroke: var(--orange);
+    stroke-width: 5;
+    stroke-dasharray: 220;
+    stroke-dashoffset: 0;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+  }
+
+  .countdown-number {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    color: var(--orange);
+  }
+
+  .countdown-label {
+    margin-left: 16px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    line-height: 1.6;
+  }
+
+  .countdown-label strong { color: var(--text); font-size: 0.9rem; display: block; }
+
+  /* ---- BUTTONS ---- */
+  .buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .bet-btn {
+    padding: 20px 16px;
+    border-radius: 14px;
+    border: 2px solid transparent;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .bet-btn .sub { font-family: 'Space Mono', monospace; font-size: 0.55rem; letter-spacing: 1px; opacity: 0.7; }
+
+  .btn-up {
+    background: rgba(0,230,118,0.08);
+    border-color: rgba(0,230,118,0.3);
+    color: var(--green);
+  }
+
+  .btn-up:hover:not(:disabled) {
+    background: rgba(0,230,118,0.18);
+    border-color: var(--green);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,230,118,0.2);
+  }
+
+  .btn-down {
+    background: rgba(255,68,68,0.08);
+    border-color: rgba(255,68,68,0.3);
+    color: var(--red);
+  }
+
+  .btn-down:hover:not(:disabled) {
+    background: rgba(255,68,68,0.18);
+    border-color: var(--red);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(255,68,68,0.2);
+  }
+
+  .bet-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .bet-btn:active:not(:disabled) { transform: scale(0.97); }
+
+  /* ---- RESULT TOAST ---- */
+  .result-toast {
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    min-height: 48px;
+  }
+
+  .result-toast.show { opacity: 1; }
+  .result-toast.win { background: rgba(0,230,118,0.12); color: var(--green); border: 1px solid rgba(0,230,118,0.3); }
+  .result-toast.lose { background: rgba(255,68,68,0.1); color: var(--red); border: 1px solid rgba(255,68,68,0.25); }
+
+  /* ---- STREAK ---- */
+  .streak-row {
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+  }
+
+  .streak-row span { color: var(--orange); font-family: 'Bebas Neue', sans-serif; font-size: 1rem; }
+
+  /* ---- GAME OVER SCREEN ---- */
+  .gameover {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 24px;
+    text-align: center;
+  }
+
+  .gameover.active { display: block; }
+
+  .gameover-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    color: var(--orange);
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+
+  .gameover-sub {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    margin-bottom: 28px;
+  }
+
+  .final-score-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; }
+  .final-score-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem;
+    color: var(--orange);
+    line-height: 1;
+    text-shadow: 0 0 40px var(--orange-glow);
+    margin-bottom: 8px;
+  }
+
+  .final-stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 28px;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  .final-stats strong { color: var(--text); font-size: 1rem; display: block; font-family: 'Bebas Neue', sans-serif; }
+
+  .restart-btn {
+    background: var(--orange);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 16px 40px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    width: 100%;
+  }
+
+  .restart-btn:hover { background: #ffaa44; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(247,147,26,0.4); }
+  .restart-btn:active { transform: scale(0.97); }
+
+  /* ---- GAME AREA ---- */
+  #game-area { display: block; }
+
+  /* Loading */
+  .loading-text { text-align: center; color: var(--muted); font-size: 0.75rem; letter-spacing: 2px; padding: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">Satoshi Sprint <span>LITE</span></div>
+  </div>
+
+  <!-- GAME AREA -->
+  <div id="game-area">
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-label">Score</div>
+        <div class="stat-value" id="score">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Time</div>
+        <div class="stat-value" id="timer">60</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Streak</div>
+        <div class="stat-value" id="streak-stat">0</div>
+      </div>
+    </div>
+
+    <!-- Price Card -->
+    <div class="price-card">
+      <div class="price-label"><span class="update-dot"></span>BTC / USD — LIVE</div>
+      <div class="price-display" id="price-display">—</div>
+      <div class="price-change" id="price-change">&nbsp;</div>
+    </div>
+
+    <!-- Countdown -->
+    <div class="countdown-wrap" id="countdown-wrap">
+      <div class="countdown-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle class="track" cx="40" cy="40" r="35"/>
+          <circle class="progress" id="ring-progress" cx="40" cy="40" r="35"/>
+        </svg>
+        <div class="countdown-number" id="countdown-number">5</div>
+      </div>
+      <div class="countdown-label">
+        <strong id="prediction-label">Waiting...</strong>
+        Fetching result in seconds
+      </div>
+    </div>
+
+    <!-- Result Toast -->
+    <div class="result-toast" id="result-toast"></div>
+
+    <!-- Buttons -->
+    <div class="buttons">
+      <button class="bet-btn btn-up" id="btn-up" onclick="placeBet('up')">
+        ▲ UP
+        <span class="sub">+10 if correct</span>
+      </button>
+      <button class="bet-btn btn-down" id="btn-down" onclick="placeBet('down')">
+        ▼ DOWN
+        <span class="sub">−5 if wrong</span>
+      </button>
+    </div>
+
+    <!-- Streak -->
+    <div class="streak-row">CURRENT STREAK &nbsp;<span id="streak-display">0</span> &nbsp;🔥</div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="gameover" id="gameover">
+    <div class="gameover-title">Game Over</div>
+    <div class="gameover-sub">TIME'S UP, TRADER</div>
+    <div class="final-score-label">Final Score</div>
+    <div class="final-score-value" id="final-score">0</div>
+    <div class="final-stats">
+      <div><strong id="final-correct">0</strong> Correct</div>
+      <div><strong id="final-wrong">0</strong> Wrong</div>
+      <div><strong id="final-streak">0</strong> Best Streak</div>
+    </div>
+    <button class="restart-btn" onclick="restartGame()">⟳ Play Again</button>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────
+  let score = 0, timeLeft = 60, streak = 0, bestStreak = 0;
+  let correctCount = 0, wrongCount = 0;
+  let currentPrice = null, priceAtBet = null;
+  let waiting = false, gameActive = false;
+  let gameTimerInterval = null, priceInterval = null;
+  let countdownTimeout = null;
+  const CIRCUMFERENCE = 2 * Math.PI * 35; // ~220
+
+  // ── API ────────────────────────────────────────────────────────────
+  async function fetchBTCPrice() {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+      const data = await res.json();
+      return data.bitcoin.usd;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ── Price Display ──────────────────────────────────────────────────
+  function formatPrice(p) {
+    return '$' + p.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  function updatePriceDisplay(newPrice) {
+    const el = document.getElementById('price-display');
+    const changeEl = document.getElementById('price-change');
+    if (currentPrice !== null && newPrice !== null) {
+      const diff = newPrice - currentPrice;
+      const pct = ((diff / currentPrice) * 100).toFixed(3);
+      const sign = diff >= 0 ? '+' : '';
+      changeEl.textContent = `${sign}$${diff.toFixed(0)} (${sign}${pct}%)`;
+      el.className = 'price-display ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
+      changeEl.className = 'price-change ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
+    }
+    if (newPrice !== null) {
+      el.textContent = formatPrice(newPrice);
+      currentPrice = newPrice;
+    }
+  }
+
+  // ── Game Timer ─────────────────────────────────────────────────────
+  function startGameTimer() {
+    const timerEl = document.getElementById('timer');
+    gameTimerInterval = setInterval(() => {
+      timeLeft--;
+      timerEl.textContent = timeLeft;
+      if (timeLeft <= 10) timerEl.classList.add('timer-warn');
+      if (timeLeft <= 0) endGame();
+    }, 1000);
+  }
+
+  // ── Betting ────────────────────────────────────────────────────────
+  function placeBet(direction) {
+    if (!gameActive || waiting || currentPrice === null) return;
+    waiting = true;
+    priceAtBet = currentPrice;
+    setButtons(false);
+
+    // Show prediction
+    const label = document.getElementById('prediction-label');
+    label.textContent = direction === 'up' ? '▲ You picked UP' : '▼ You picked DOWN';
+    label.style.color = direction === 'up' ? 'var(--green)' : 'var(--red)';
+    startCountdown(direction);
+  }
+
+  function startCountdown(direction) {
+    const wrap = document.getElementById('countdown-wrap');
+    const numEl = document.getElementById('countdown-number');
+    const ring = document.getElementById('ring-progress');
+    wrap.classList.add('active');
+    ring.style.strokeDasharray = CIRCUMFERENCE;
+    ring.style.strokeDashoffset = 0;
+
+    let count = 5;
+    numEl.textContent = count;
+
+    // Animate ring
+    setTimeout(() => { ring.style.strokeDashoffset = CIRCUMFERENCE; }, 50);
+
+    const tick = setInterval(() => {
+      count--;
+      numEl.textContent = count;
+      if (count <= 0) {
+        clearInterval(tick);
+        wrap.classList.remove('active');
+        resolveResult(direction);
+      }
+    }, 1000);
+  }
+
+  async function resolveResult(direction) {
+    const newPrice = await fetchBTCPrice();
+    if (newPrice !== null) updatePriceDisplay(newPrice);
+
+    const endPrice = newPrice ?? currentPrice;
+    const priceWentUp = endPrice > priceAtBet;
+    const correct = (direction === 'up' && priceWentUp) || (direction === 'down' && !priceWentUp);
+
+    const toast = document.getElementById('result-toast');
+    if (correct) {
+      score += 10;
+      streak++;
+      correctCount++;
+      if (streak > bestStreak) bestStreak = streak;
+      toast.textContent = `✓ CORRECT!  +10 pts  (was ${formatPrice(priceAtBet)} → ${formatPrice(endPrice)})`;
+      toast.className = 'result-toast win show';
+    } else {
+      score = Math.max(0, score - 5);
+      streak = 0;
+      wrongCount++;
+      toast.textContent = `✗ WRONG  -5 pts  (was ${formatPrice(priceAtBet)} → ${formatPrice(endPrice)})`;
+      toast.className = 'result-toast lose show';
+    }
+
+    updateStats();
+    setTimeout(() => { toast.classList.remove('show'); }, 2500);
+
+    waiting = false;
+    if (gameActive) setButtons(true);
+  }
+
+  // ── UI Helpers ─────────────────────────────────────────────────────
+  function setButtons(enabled) {
+    document.getElementById('btn-up').disabled = !enabled;
+    document.getElementById('btn-down').disabled = !enabled;
+  }
+
+  function updateStats() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('streak-stat').textContent = streak;
+    document.getElementById('streak-display').textContent = streak;
+  }
+
+  // ── End / Restart ──────────────────────────────────────────────────
+  function endGame() {
+    gameActive = false;
+    clearInterval(gameTimerInterval);
+    clearInterval(priceInterval);
+    setButtons(false);
+
+    document.getElementById('final-score').textContent = score;
+    document.getElementById('final-correct').textContent = correctCount;
+    document.getElementById('final-wrong').textContent = wrongCount;
+    document.getElementById('final-streak').textContent = bestStreak;
+
+    document.getElementById('game-area').style.display = 'none';
+    document.getElementById('gameover').classList.add('active');
+  }
+
+  function restartGame() {
+    score = 0; timeLeft = 60; streak = 0; bestStreak = 0;
+    correctCount = 0; wrongCount = 0;
+    waiting = false; priceAtBet = null;
+
+    document.getElementById('score').textContent = 0;
+    document.getElementById('timer').textContent = 60;
+    document.getElementById('timer').classList.remove('timer-warn');
+    document.getElementById('streak-stat').textContent = 0;
+    document.getElementById('streak-display').textContent = 0;
+    document.getElementById('result-toast').className = 'result-toast';
+    document.getElementById('countdown-wrap').classList.remove('active');
+
+    document.getElementById('gameover').classList.remove('active');
+    document.getElementById('game-area').style.display = 'block';
+
+    initGame();
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────
+  async function initGame() {
+    gameActive = true;
+    setButtons(false);
+    document.getElementById('price-display').textContent = 'Loading...';
+
+    const price = await fetchBTCPrice();
+    if (price) {
+      currentPrice = price;
+      document.getElementById('price-display').textContent = formatPrice(price);
+    }
+
+    setButtons(true);
+    startGameTimer();
+
+    priceInterval = setInterval(async () => {
+      if (!waiting) {
+        const p = await fetchBTCPrice();
+        if (p) updatePriceDisplay(p);
+      }
+    }, 3000);
+  }
+
+  initGame();
+</script>
+</body>
+</html>
